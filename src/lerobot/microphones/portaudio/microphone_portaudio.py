@@ -24,7 +24,7 @@ from multiprocessing import (
     Process,
 )
 from pathlib import Path
-from queue import Empty
+from queue import Empty, Full
 from threading import Barrier, Event, Event as thread_Event, Thread
 from typing import Any
 
@@ -258,7 +258,9 @@ class PortAudioMicrophone(Microphone):
             dtype=np.dtype("float32"),
         )
         self.local_read_shared_array = self.read_shared_array.get_local_array()
-        self.write_queue = process_Queue()
+        # Set a maxsize to prevent unbounded memory growth if the writer is too slow
+        # 2000 chunks of ~30ms (at 16kHz) is roughly 60 seconds of buffer.
+        self.write_queue = process_Queue(maxsize=2000)
 
         # Reset events
         self.record_start_event.clear()
@@ -374,7 +376,12 @@ class PortAudioMicrophone(Microphone):
             if status:
                 logger.warning(status)
             if audio_callback_start_event.is_set():
-                write_queue.put_nowait(indata[:, channels_index])
+                try:
+                    write_queue.put_nowait(indata[:, channels_index])
+                except Full:
+                    # Queue is full, drop the frame. This prevents memory filling up.
+                    # We could log a warning, but it might be too frequent.
+                    pass
                 read_shared_array.write(local_read_shared_array, indata[:, channels_index])
 
         # Create the audio stream
@@ -497,17 +504,22 @@ class PortAudioMicrophone(Microphone):
         self.record_start_event.clear()  # Ensures the audio stream is not started again !
         self.record_stop_event.set()
 
-        self.read_shared_array.reset()
-        self._clear_queue(self.write_queue, join_queue=True)
-
-        if self.is_writing:
-            self.write_stop_event.set()
-            self.write_thread.join()
-
-        timeout = 1.0
+        # Wait for the recording process to actually stop producing data
+        # This avoids racing with the writer trying to drain the queue while producer is still active
+        timeout = 2.0
         while self.is_recording and timeout > 0:
             time.sleep(0.01)
             timeout -= 0.01
+
+        self.read_shared_array.reset()
+
+        if self.is_writing:
+            # Wait for the writer to finish writing all pending data
+            self.write_queue.join()
+            self.write_stop_event.set()
+            self.write_thread.join()
+        else:
+            self._clear_queue(self.write_queue, join_queue=True)
 
         if self.is_recording:
             raise RuntimeError(f"Error stopping recording for microphone {self.microphone_index}.")
