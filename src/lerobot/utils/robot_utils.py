@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import platform
 import time
 
@@ -38,6 +39,7 @@ def precise_sleep(seconds: float, spin_threshold: float = 0.010, sleep_margin: f
     # milliseconds to achieve good accuracy with much lower CPU usage.
     if system in ("Darwin", "Windows"):
         end_time = time.perf_counter() + seconds
+<<<<<<< HEAD
         while True:
             remaining = end_time - time.perf_counter()
             if remaining <= 0:

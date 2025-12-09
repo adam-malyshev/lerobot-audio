@@ -17,7 +17,10 @@
 import time
 
 from lerobot.robots.lekiwi import LeKiwiClient, LeKiwiClientConfig
-from lerobot.teleoperators.keyboard.teleop_keyboard import KeyboardTeleop, KeyboardTeleopConfig
+from lerobot.teleoperators.keyboard.teleop_keyboard import (
+    KeyboardTeleop,
+    KeyboardTeleopConfig,
+)
 from lerobot.teleoperators.so100_leader import SO100Leader, SO100LeaderConfig
 from lerobot.utils.robot_utils import precise_sleep
 from lerobot.utils.visualization_utils import init_rerun, log_rerun_data
@@ -28,7 +31,9 @@ FPS = 30
 def main():
     # Create the robot and teleoperator configurations
     robot_config = LeKiwiClientConfig(remote_ip="172.18.134.136", id="my_lekiwi")
-    teleop_arm_config = SO100LeaderConfig(port="/dev/tty.usbmodem585A0077581", id="my_awesome_leader_arm")
+    teleop_arm_config = SO100LeaderConfig(
+        port="/dev/tty.usbmodem585A0077581", id="my_awesome_leader_arm"
+    )
     keyboard_config = KeyboardTeleopConfig(id="my_laptop_keyboard")
 
     # Initialize the robot and teleoperator
@@ -45,7 +50,11 @@ def main():
     # Init rerun viewer
     init_rerun(session_name="lekiwi_teleop")
 
-    if not robot.is_connected or not leader_arm.is_connected or not keyboard.is_connected:
+    if (
+        not robot.is_connected
+        or not leader_arm.is_connected
+        or not keyboard.is_connected
+    ):
         raise ValueError("Robot or teleop is not connected!")
 
     print("Starting teleop loop...")

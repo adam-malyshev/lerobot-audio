@@ -41,7 +41,9 @@ FPS = 30
 def main():
     # Initialize the robot and teleoperator
     robot_config = SO100FollowerConfig(
-        port="/dev/tty.usbmodem5A460814411", id="my_awesome_follower_arm", use_degrees=True
+        port="/dev/tty.usbmodem5A460814411",
+        id="my_awesome_follower_arm",
+        use_degrees=True,
     )
     teleop_config = PhoneConfig(phone_os=PhoneOS.IOS)  # or PhoneOS.ANDROID
 
@@ -96,6 +98,7 @@ def main():
         raise ValueError("Robot or teleop is not connected!")
 
     print("Starting teleop loop. Move your phone to teleoperate the robot...")
+    start = time.perf_counter()
     while True:
         t0 = time.perf_counter()
 
@@ -110,9 +113,12 @@ def main():
 
         # Send action to robot
         _ = robot.send_action(joint_action)
-
         # Visualize
-        log_rerun_data(observation=phone_obs, action=joint_action)
+        log_rerun_data(
+            observation=phone_obs,
+            action=joint_action,
+            log_time=time.perf_counter() - start,
+        )
 
         precise_sleep(max(1.0 / FPS - (time.perf_counter() - t0), 0.0))
 

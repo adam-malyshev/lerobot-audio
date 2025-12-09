@@ -41,9 +41,13 @@ FPS = 30
 def main():
     # Initialize the robot and teleoperator config
     follower_config = SO100FollowerConfig(
-        port="/dev/tty.usbmodem5A460814411", id="my_awesome_follower_arm", use_degrees=True
+        port="/dev/tty.usbmodem5A460814411",
+        id="my_awesome_follower_arm",
+        use_degrees=True,
     )
-    leader_config = SO100LeaderConfig(port="/dev/tty.usbmodem5A460819811", id="my_awesome_leader_arm")
+    leader_config = SO100LeaderConfig(
+        port="/dev/tty.usbmodem5A460819811", id="my_awesome_leader_arm"
+    )
 
     # Initialize the robot and teleoperator
     follower = SO100Follower(follower_config)
@@ -67,7 +71,8 @@ def main():
     leader_to_ee = RobotProcessorPipeline[RobotAction, RobotAction](
         steps=[
             ForwardKinematicsJointsToEE(
-                kinematics=leader_kinematics_solver, motor_names=list(leader.bus.motors.keys())
+                kinematics=leader_kinematics_solver,
+                motor_names=list(leader.bus.motors.keys()),
             ),
         ],
         to_transition=robot_action_to_transition,
@@ -75,7 +80,9 @@ def main():
     )
 
     # build pipeline to convert EE action to robot joints
-    ee_to_follower_joints = RobotProcessorPipeline[tuple[RobotAction, RobotObservation], RobotAction](
+    ee_to_follower_joints = RobotProcessorPipeline[
+        tuple[RobotAction, RobotObservation], RobotAction
+    ](
         [
             EEBoundsAndSafety(
                 end_effector_bounds={"min": [-1.0, -1.0, -1.0], "max": [1.0, 1.0, 1.0]},
@@ -96,9 +103,10 @@ def main():
     leader.connect()
 
     # Init rerun viewer
-    init_rerun(session_name="so100_so100_EE_teleop")
+    init_rerun(session_name="so100_so100_EE_teleop", robot=follower, reset_time=True)
 
     print("Starting teleop loop...")
+    start = time.perf_counter()
     while True:
         t0 = time.perf_counter()
 
@@ -116,9 +124,12 @@ def main():
 
         # Send action to robot
         _ = follower.send_action(follower_joints_act)
-
         # Visualize
-        log_rerun_data(observation=leader_ee_act, action=follower_joints_act)
+        log_rerun_data(
+            observation=leader_ee_act,
+            action=follower_joints_act,
+            log_time=time.perf_counter() - start,
+        )
 
         precise_sleep(max(1.0 / FPS - (time.perf_counter() - t0), 0.0))
 
