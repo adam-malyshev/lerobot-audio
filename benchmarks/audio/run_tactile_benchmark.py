@@ -28,7 +28,7 @@ from lerobot.microphones.utils import (
     make_microphones_from_configs,
 )
 from lerobot.utils.robot_utils import (
-    busy_wait,
+    precise_sleep,
 )
 
 
@@ -54,12 +54,14 @@ def main(
     # Start recording
     async_microphones_start_recording(
         sensors,
-        output_files=[recording_dir / f"{sensor_key}_recording.wav" for sensor_key in sensors],
+        output_files=[
+            recording_dir / f"{sensor_key}_recording.wav" for sensor_key in sensors
+        ],
         multiprocessing=multiprocessing,
     )
 
     # Record audio chunks
-    busy_wait(10.0)
+    precise_sleep(10.0)
 
     for sensor_key, sensor in sensors.items():
         data_chunk = sensor.read()

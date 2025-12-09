@@ -21,7 +21,7 @@ from typing import Any
 import numpy as np
 from sounddevice import PortAudioError
 
-from lerobot.utils.robot_utils import busy_wait
+from lerobot.utils.robot_utils import precise_sleep
 
 
 # --- Interface definitions for InputStream ---
@@ -58,7 +58,9 @@ class ISounddeviceSDK(abc.ABC):
     InputStream: type[IInputStream]
 
     @abc.abstractmethod
-    def query_devices(self, device: int | str | None = None, kind: str | None = None) -> list[dict[str, Any]]:
+    def query_devices(
+        self, device: int | str | None = None, kind: str | None = None
+    ) -> list[dict[str, Any]]:
         pass
 
 
@@ -129,7 +131,9 @@ class SounddeviceSDKAdapter(ISounddeviceSDK):
 
     InputStream = RealInputStream
 
-    def query_devices(self, device: int | str | None = None, kind: str | None = None) -> list[dict[str, Any]]:
+    def query_devices(
+        self, device: int | str | None = None, kind: str | None = None
+    ) -> list[dict[str, Any]]:
         return SounddeviceSDKAdapter._sounddevice.query_devices(device, kind)
 
 
@@ -219,7 +223,9 @@ class FakeSounddeviceSDKAdapter(ISounddeviceSDK):
             self._closed = False
 
             if self.callback is not None:
-                self._streaming_thread = Thread(target=self._streaming_loop, daemon=True)
+                self._streaming_thread = Thread(
+                    target=self._streaming_loop, daemon=True
+                )
                 self._streaming_thread_stop_event = Event()
 
         @property
@@ -240,9 +246,9 @@ class FakeSounddeviceSDKAdapter(ISounddeviceSDK):
         def _get_device_info(self):
             """Returns the device info for the device."""
             for device in VALID_DEVICES:
-                if (isinstance(self.device, int) and device["index"] == self.device) or (
-                    isinstance(self.device, str) and device["name"] == self.device
-                ):
+                if (
+                    isinstance(self.device, int) and device["index"] == self.device
+                ) or (isinstance(self.device, str) and device["name"] == self.device):
                     return device
             raise PortAudioError(f"No input device matching {self.device}")
 
@@ -254,17 +260,27 @@ class FakeSounddeviceSDKAdapter(ISounddeviceSDK):
             if self.device is not None:
                 if isinstance(self.device, (int, str)):
                     # Check if device index is valid
-                    if isinstance(self.device, int) and self.device not in valid_device_indices:
+                    if (
+                        isinstance(self.device, int)
+                        and self.device not in valid_device_indices
+                    ):
                         raise PortAudioError(f"Error querying device {self.device}")
 
                     # Check if device name is valid
-                    if isinstance(self.device, str) and self.device not in valid_device_names:
+                    if (
+                        isinstance(self.device, str)
+                        and self.device not in valid_device_names
+                    ):
                         raise PortAudioError(f"No input device matching {self.device}")
                 else:
-                    raise PortAudioError(f"Device must be int or str, got {type(self.device)}")
+                    raise PortAudioError(
+                        f"Device must be int or str, got {type(self.device)}"
+                    )
             else:
                 # Default to first input device
-                input_devices = [d for d in VALID_DEVICES if d["max_input_channels"] > 0]
+                input_devices = [
+                    d for d in VALID_DEVICES if d["max_input_channels"] > 0
+                ]
                 if input_devices:
                     self.device = input_devices[0]["index"]
 
@@ -273,7 +289,10 @@ class FakeSounddeviceSDKAdapter(ISounddeviceSDK):
             device_info = self._get_device_info()
             if self.samplerate is None:
                 self.samplerate = device_info["default_samplerate"]
-            elif self.samplerate > device_info["default_samplerate"] or self.samplerate < 1000:
+            elif (
+                self.samplerate > device_info["default_samplerate"]
+                or self.samplerate < 1000
+            ):
                 raise PortAudioError("Error opening InputStream: Invalid sample rate")
 
         def _validate_channels(self):
@@ -282,7 +301,9 @@ class FakeSounddeviceSDKAdapter(ISounddeviceSDK):
             if self.channels is None:
                 self.channels = device_info["max_input_channels"]
             elif self.channels > device_info["max_input_channels"] or self.channels < 1:
-                raise PortAudioError("Error opening InputStream: Invalid number of channels")
+                raise PortAudioError(
+                    "Error opening InputStream: Invalid number of channels"
+                )
 
         def _validate_dtype(self):
             """Validates the dtype against the valid dtypes."""
@@ -322,12 +343,17 @@ class FakeSounddeviceSDKAdapter(ISounddeviceSDK):
             # Generate output according to dtype
             if self.dtype in {"float32", np.float32}:
                 # Generate values between -1 and 1 for float32
-                data = np.random.uniform(-1.0, 1.0, (duration_samples, self.channels)).astype(self.dtype)
+                data = np.random.uniform(
+                    -1.0, 1.0, (duration_samples, self.channels)
+                ).astype(self.dtype)
             else:
                 # Use np.iinfo to get proper range for integer types
                 info = np.iinfo(self.dtype)
                 data = np.random.randint(
-                    info.min, info.max + 1, (duration_samples, self.channels), dtype=self.dtype
+                    info.min,
+                    info.max + 1,
+                    (duration_samples, self.channels),
+                    dtype=self.dtype,
                 )
 
             return data
@@ -335,7 +361,7 @@ class FakeSounddeviceSDKAdapter(ISounddeviceSDK):
         def _streaming_loop(self):
             if self.callback is not None:
                 while not self._streaming_thread_stop_event.is_set():
-                    busy_wait(self.latency)
+                    precise_sleep(self.latency)
                     tmp_data = self._simulated_audio_data()
                     self.callback(
                         tmp_data,
@@ -369,7 +395,9 @@ class FakeSounddeviceSDKAdapter(ISounddeviceSDK):
 
     InputStream = FakeInputStream
 
-    def query_devices(self, device: int | str | None = None, kind: str | None = None) -> list[dict[str, Any]]:
+    def query_devices(
+        self, device: int | str | None = None, kind: str | None = None
+    ) -> list[dict[str, Any]]:
         """Returns a realistic list of audio devices including speakers and microphones."""
         if device is not None:
             # Return specific device

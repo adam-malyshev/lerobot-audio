@@ -20,20 +20,25 @@ import numpy as np
 import pytest
 from soundfile import read
 
-from lerobot.microphones.portaudio.configuration_portaudio import PortAudioMicrophoneConfig
+from lerobot.microphones.portaudio.configuration_portaudio import (
+    PortAudioMicrophoneConfig,
+)
 from lerobot.microphones.portaudio.interface_sounddevice_sdk import (
     FakeSounddeviceSDKAdapter,
     SounddeviceSDKAdapter,
 )
 from lerobot.microphones.portaudio.microphone_portaudio import PortAudioMicrophone
-from lerobot.microphones.utils import async_microphones_start_recording, async_microphones_stop_recording
+from lerobot.microphones.utils import (
+    async_microphones_start_recording,
+    async_microphones_stop_recording,
+)
 from lerobot.utils.errors import (
     DeviceAlreadyConnectedError,
     DeviceAlreadyRecordingError,
     DeviceNotConnectedError,
     DeviceNotRecordingError,
 )
-from lerobot.utils.robot_utils import busy_wait
+from lerobot.utils.robot_utils import precise_sleep
 
 MODULE_PATH = "lerobot.microphones.portaudio.microphone_portaudio"
 RECORDING_DURATION = 1.0
@@ -57,7 +62,9 @@ def test_sdk():
 
 def test_config_creation():
     """Test creating a valid configuration."""
-    config = PortAudioMicrophoneConfig(microphone_index=0, sample_rate=48000, channels=[1, 2])
+    config = PortAudioMicrophoneConfig(
+        microphone_index=0, sample_rate=48000, channels=[1, 2]
+    )
     assert config.microphone_index == 0
     assert config.sample_rate == 48000
     assert config.channels == [1, 2]
@@ -115,7 +122,9 @@ def test_init_defaults(default_config, test_sdk):
     assert microphone is not None
     assert microphone.microphone_index == device_info["index"]
     assert microphone.sample_rate == device_info["default_samplerate"]
-    np.testing.assert_array_equal(microphone.channels, np.arange(device_info["max_input_channels"]) + 1)
+    np.testing.assert_array_equal(
+        microphone.channels, np.arange(device_info["max_input_channels"]) + 1
+    )
     assert not microphone.is_connected
     assert not microphone.is_recording
 
@@ -140,7 +149,9 @@ def test_connect_empty_config(default_config, test_sdk):
 
     device_info = test_sdk.query_devices(kind="input")
     assert microphone.sample_rate == device_info["default_samplerate"]
-    np.testing.assert_array_equal(microphone.channels, np.arange(device_info["max_input_channels"]) + 1)
+    np.testing.assert_array_equal(
+        microphone.channels, np.arange(device_info["max_input_channels"]) + 1
+    )
 
 
 def test_connect_already_connected(default_config, test_sdk):
@@ -273,7 +284,9 @@ def test_start_writing_success(tmp_path, default_config, test_sdk, multiprocessi
     """Test successful writing start."""
     microphone = PortAudioMicrophone(default_config, sounddevice_sdk=test_sdk)
     microphone.connect()
-    microphone.start_recording(output_file=tmp_path / "test.wav", multiprocessing=multiprocessing)
+    microphone.start_recording(
+        output_file=tmp_path / "test.wav", multiprocessing=multiprocessing
+    )
 
     assert microphone.is_recording
     assert microphone.is_connected
@@ -282,7 +295,9 @@ def test_start_writing_success(tmp_path, default_config, test_sdk, multiprocessi
 
 
 @pytest.mark.parametrize("multiprocessing", [True, False])
-def test_start_writing_file_already_exists_no_overwrite(tmp_path, default_config, test_sdk, multiprocessing):
+def test_start_writing_file_already_exists_no_overwrite(
+    tmp_path, default_config, test_sdk, multiprocessing
+):
     """Test writing with file that already exists."""
     (tmp_path / "test.wav").touch()
     microphone = PortAudioMicrophone(default_config, sounddevice_sdk=test_sdk)
@@ -290,7 +305,9 @@ def test_start_writing_file_already_exists_no_overwrite(tmp_path, default_config
 
     with pytest.raises(FileExistsError):
         microphone.start_recording(
-            output_file=tmp_path / "test.wav", multiprocessing=multiprocessing, overwrite=False
+            output_file=tmp_path / "test.wav",
+            multiprocessing=multiprocessing,
+            overwrite=False,
         )
 
     (tmp_path / "test.wav").unlink()
@@ -302,7 +319,7 @@ def test_stop_recording_success(default_config, test_sdk, multiprocessing):
     microphone = PortAudioMicrophone(default_config, sounddevice_sdk=test_sdk)
     microphone.connect()
     microphone.start_recording(multiprocessing=multiprocessing)
-    busy_wait(RECORDING_DURATION)
+    precise_sleep(RECORDING_DURATION)
     microphone.stop_recording()
 
     assert not microphone.is_recording
@@ -315,8 +332,10 @@ def test_stop_writing_success(tmp_path, default_config, test_sdk, multiprocessin
     """Test successful writing stop."""
     microphone = PortAudioMicrophone(default_config, sounddevice_sdk=test_sdk)
     microphone.connect()
-    microphone.start_recording(output_file=tmp_path / "test.wav", multiprocessing=multiprocessing)
-    busy_wait(RECORDING_DURATION)
+    microphone.start_recording(
+        output_file=tmp_path / "test.wav", multiprocessing=multiprocessing
+    )
+    precise_sleep(RECORDING_DURATION)
     microphone.stop_recording()
 
     assert not microphone.is_recording
@@ -348,7 +367,7 @@ def test_disconnect_while_recording(default_config, test_sdk, multiprocessing):
     microphone = PortAudioMicrophone(default_config, sounddevice_sdk=test_sdk)
     microphone.connect()
     microphone.start_recording(multiprocessing=multiprocessing)
-    busy_wait(RECORDING_DURATION)
+    precise_sleep(RECORDING_DURATION)
     microphone.disconnect()
 
     assert not microphone.is_connected
@@ -361,8 +380,10 @@ def test_disconnect_while_writing(tmp_path, default_config, test_sdk, multiproce
     """Test disconnecting while writing."""
     microphone = PortAudioMicrophone(default_config, sounddevice_sdk=test_sdk)
     microphone.connect()
-    microphone.start_recording(output_file=tmp_path / "test.wav", multiprocessing=multiprocessing)
-    busy_wait(RECORDING_DURATION)
+    microphone.start_recording(
+        output_file=tmp_path / "test.wav", multiprocessing=multiprocessing
+    )
+    precise_sleep(RECORDING_DURATION)
     microphone.disconnect()
 
     assert not microphone.is_connected
@@ -378,7 +399,7 @@ def test_read_success(default_config, test_sdk, multiprocessing):
     microphone.connect()
     microphone.start_recording(multiprocessing=multiprocessing)
 
-    busy_wait(RECORDING_DURATION)
+    precise_sleep(RECORDING_DURATION)
 
     data = microphone.read()
 
@@ -396,9 +417,11 @@ def test_writing_success(tmp_path, default_config, test_sdk, multiprocessing):
     """Test successful writing to file."""
     microphone = PortAudioMicrophone(default_config, sounddevice_sdk=test_sdk)
     microphone.connect()
-    microphone.start_recording(output_file=tmp_path / "test.wav", multiprocessing=multiprocessing)
+    microphone.start_recording(
+        output_file=tmp_path / "test.wav", multiprocessing=multiprocessing
+    )
 
-    busy_wait(RECORDING_DURATION)
+    precise_sleep(RECORDING_DURATION)
 
     microphone.stop_recording()
 
@@ -418,9 +441,11 @@ def test_read_while_writing(tmp_path, default_config, test_sdk, multiprocessing)
     """Test reading while writing."""
     microphone = PortAudioMicrophone(default_config, sounddevice_sdk=test_sdk)
     microphone.connect()
-    microphone.start_recording(output_file=tmp_path / "test.wav", multiprocessing=multiprocessing)
+    microphone.start_recording(
+        output_file=tmp_path / "test.wav", multiprocessing=multiprocessing
+    )
 
-    busy_wait(RECORDING_DURATION)
+    precise_sleep(RECORDING_DURATION)
 
     read_data = microphone.read()
     microphone.stop_recording()
@@ -464,7 +489,9 @@ def test_async_start_writing(default_config, test_sdk):
     for microphone in microphones.values():
         microphone.connect()
 
-    async_microphones_start_recording(microphones, output_files=["test_1.wav", "test_2.wav"])
+    async_microphones_start_recording(
+        microphones, output_files=["test_1.wav", "test_2.wav"]
+    )
 
     for microphone in microphones.values():
         assert microphone.is_recording
@@ -501,7 +528,9 @@ def test_async_stop_writing(default_config, test_sdk):
     for microphone in microphones.values():
         microphone.connect()
 
-    async_microphones_start_recording(microphones, output_files=["test_1.wav", "test_2.wav"])
+    async_microphones_start_recording(
+        microphones, output_files=["test_1.wav", "test_2.wav"]
+    )
     async_microphones_stop_recording(microphones)
 
     for microphone in microphones.values():

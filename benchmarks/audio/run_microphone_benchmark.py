@@ -29,7 +29,7 @@ from lerobot.microphones.utils import (
     make_microphones_from_configs,
 )
 from lerobot.utils.robot_utils import (
-    busy_wait,
+    precise_sleep,
 )
 
 
@@ -63,25 +63,30 @@ def main(
         async_microphones_start_recording(
             microphones,
             output_files=[
-                recording_dir / f"{microphone_key}_recording_{i}.wav" for microphone_key in microphones
+                recording_dir / f"{microphone_key}_recording_{i}.wav"
+                for microphone_key in microphones
             ],
             multiprocessing=multiprocessing,
         )
 
         # Record audio chunks
         for j in range(audio_chunks_number):
-            busy_wait(audio_chunks_duration)
+            precise_sleep(audio_chunks_duration)
 
             for microphone_key, microphone in microphones.items():
                 audio_chunk = microphone.read()
-                print(f"{microphone_key} - repetition {i} - chunk {j} - samples {audio_chunk.shape[0]}")
+                print(
+                    f"{microphone_key} - repetition {i} - chunk {j} - samples {audio_chunk.shape[0]}"
+                )
                 audio_chunks[microphone_key].append(audio_chunk)
 
         # Stop recording
         async_microphones_stop_recording(microphones)
 
         for microphone_key in microphones:
-            audio_chunks[microphone_key] = np.concatenate(audio_chunks[microphone_key], axis=0)
+            audio_chunks[microphone_key] = np.concatenate(
+                audio_chunks[microphone_key], axis=0
+            )
 
         all_audio_chunks.append(audio_chunks)
 
@@ -100,7 +105,9 @@ def main(
             recorded_audio_chunks = all_audio_chunks[i][microphone_key]
 
             # Load recorded file
-            recorded_data, _ = read(recording_dir / f"{microphone_key}_recording_{i}.wav")
+            recorded_data, _ = read(
+                recording_dir / f"{microphone_key}_recording_{i}.wav"
+            )
             if recorded_data.ndim == 1:
                 recorded_data = np.expand_dims(recorded_data, axis=1)
 
@@ -128,11 +135,19 @@ def main(
                 # Plot absolute difference (errors should be located at the end of the recordings)
                 if recorded_data.shape[0] - recorded_audio_chunks.shape[0] > 0:
                     chunk_data = np.append(
-                        chunk_data, np.zeros(int(recorded_data.shape[0] - recorded_audio_chunks.shape[0]))
+                        chunk_data,
+                        np.zeros(
+                            int(recorded_data.shape[0] - recorded_audio_chunks.shape[0])
+                        ),
                     )
                 else:
                     record_data = np.append(
-                        record_data, np.zeros(int(-recorded_data.shape[0] + recorded_audio_chunks.shape[0]))
+                        record_data,
+                        np.zeros(
+                            int(
+                                -recorded_data.shape[0] + recorded_audio_chunks.shape[0]
+                            )
+                        ),
                     )
                 ax[i, j].plot(
                     np.arange(0, len(record_data)) / microphone.sample_rate,
@@ -155,7 +170,9 @@ def main(
         print(
             f"Average chunk duration for {microphone_key} : {np.mean(chunk_length[:, i]) / microphone.sample_rate:.3f} seconds"
         )
-        print(f"Average difference for {microphone_key} : {np.mean(differences[:, i]):.3f} samples")
+        print(
+            f"Average difference for {microphone_key} : {np.mean(differences[:, i]):.3f} samples"
+        )
         print(
             f"Average difference for {microphone_key} : {np.mean(differences[:, i]) / microphone.sample_rate:.3f} seconds"
         )
@@ -167,7 +184,9 @@ if __name__ == "__main__":
         "--microphones_indices",
         type=int,
         nargs="+",
-        default=[microphone["index"] for microphone in PortAudioMicrophone.find_microphones()],
+        default=[
+            microphone["index"] for microphone in PortAudioMicrophone.find_microphones()
+        ],
     )
     parser.add_argument(
         "--microphones_sample_rate",

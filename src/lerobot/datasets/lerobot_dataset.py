@@ -85,6 +85,7 @@ from lerobot.utils.constants import HF_LEROBOT_HOME
 
 CODEBASE_VERSION = "v3.0"
 
+import av # TODO: (adam) remove 
 
 class LeRobotDatasetMetadata:
     def __init__(
@@ -611,7 +612,7 @@ def _encode_audio_worker(audio_key: str, episode_index: int, root: Path) -> Path
     temp_path = Path(tempfile.mkdtemp(dir=root)) / f"{audio_key}_{episode_index:03d}.mp4"
     fpath = DEFAULT_RAW_AUDIO_PATH.format(audio_key=audio_key, episode_index=episode_index)
     audio_dir = (root / fpath).parent
-    encode_audio(audio_dir, temp_path, overwrite=True)
+    encode_audio(audio_dir, temp_path, log_level=av.logging.INFO , overwrite=True)
     shutil.rmtree(audio_dir)
     return temp_path
 
