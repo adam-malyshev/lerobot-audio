@@ -31,7 +31,10 @@ from typing import Any
 import numpy as np
 from soundfile import SoundFile
 
-from lerobot.microphones.portaudio.interface_sounddevice_sdk import ISounddeviceSDK, SounddeviceSDKAdapter
+from lerobot.microphones.portaudio.interface_sounddevice_sdk import (
+    ISounddeviceSDK,
+    SounddeviceSDKAdapter,
+)
 from lerobot.utils.errors import (
     DeviceAlreadyConnectedError,
     DeviceAlreadyRecordingError,
@@ -69,7 +72,9 @@ class PortAudioMicrophone(Microphone):
     ```
     """
 
-    def __init__(self, config: PortAudioMicrophoneConfig, sounddevice_sdk: ISounddeviceSDK = None):
+    def __init__(
+        self, config: PortAudioMicrophoneConfig, sounddevice_sdk: ISounddeviceSDK = None
+    ):
         """
         Initializes the PortAudioMicrophone instance.
 
@@ -192,7 +197,9 @@ class PortAudioMicrophone(Microphone):
         """ "Validates the microphone index against available devices by checking if it has at least one input channel."""
 
         try:
-            PortAudioMicrophone.find_microphones(self.microphone_index, self.sounddevice_sdk)
+            PortAudioMicrophone.find_microphones(
+                self.microphone_index, self.sounddevice_sdk
+            )
         except RuntimeError as e:
             raise RuntimeError(
                 f"{e}. Available microphones: {PortAudioMicrophone.find_microphones(sounddevice_sdk=self.sounddevice_sdk)}"
@@ -228,9 +235,9 @@ class PortAudioMicrophone(Microphone):
     def _validate_channels(self) -> None:
         """Validates the channels against the actual microphone's maximum input channels."""
 
-        actual_channels = PortAudioMicrophone.find_microphones(self.microphone_index, self.sounddevice_sdk)[
-            "channels"
-        ]
+        actual_channels = PortAudioMicrophone.find_microphones(
+            self.microphone_index, self.sounddevice_sdk
+        )["channels"]
 
         if self.channels is not None and len(self.channels) > 0:
             if not all(channel in actual_channels for channel in self.channels):
@@ -248,7 +255,9 @@ class PortAudioMicrophone(Microphone):
         Connects the microphone and checks if the requested acquisition parameters are compatible with the microphone.
         """
         if self.is_connected:
-            raise DeviceAlreadyConnectedError(f"Microphone {self.microphone_index} is already connected.")
+            raise DeviceAlreadyConnectedError(
+                f"Microphone {self.microphone_index} is already connected."
+            )
 
         self._configure_capture_settings()
 
@@ -303,7 +312,9 @@ class PortAudioMicrophone(Microphone):
         Disconnects the microphone and stops the recording.
         """
         if not self.is_connected:
-            raise DeviceNotConnectedError(f"Microphone {self.microphone_index} is not connected.")
+            raise DeviceNotConnectedError(
+                f"Microphone {self.microphone_index} is not connected."
+            )
 
         if self.is_recording:
             self.stop_recording()
@@ -314,7 +325,9 @@ class PortAudioMicrophone(Microphone):
         self.record_process.join()
 
         if self.is_connected:
-            raise RuntimeError(f"Error disconnecting microphone {self.microphone_index}.")
+            raise RuntimeError(
+                f"Error disconnecting microphone {self.microphone_index}."
+            )
 
         logger.info(f"{self} disconnected.")
 
@@ -329,7 +342,9 @@ class PortAudioMicrophone(Microphone):
         Reads the last audio chunk recorded by the microphone, e.g. all samples recorded since the last read or since the beginning of the recording.
         """
         if not self.is_connected:
-            raise DeviceNotConnectedError(f"Microphone {self.microphone_index} is not connected.")
+            raise DeviceNotConnectedError(
+                f"Microphone {self.microphone_index} is not connected."
+            )
         if not self.is_recording:
             raise RuntimeError(f"Microphone {self.microphone_index} is not recording.")
 
@@ -375,7 +390,9 @@ class PortAudioMicrophone(Microphone):
                 logger.warning(status)
             if audio_callback_start_event.is_set():
                 write_queue.put_nowait(indata[:, channels_index])
-                read_shared_array.write(local_read_shared_array, indata[:, channels_index])
+                read_shared_array.write(
+                    local_read_shared_array, indata[:, channels_index]
+                )
 
         # Create the audio stream
         # InputStream must be instantiated in the process as it is not pickable.
@@ -415,9 +432,13 @@ class PortAudioMicrophone(Microphone):
         Starts the recording of the microphone. If output_file is provided, the audio will be written to this file.
         """
         if not self.is_connected:
-            raise DeviceNotConnectedError(f"Microphone {self.microphone_index} is not connected.")
+            raise DeviceNotConnectedError(
+                f"Microphone {self.microphone_index} is not connected."
+            )
         if self.is_recording:
-            raise DeviceAlreadyRecordingError(f"Microphone {self.microphone_index} is already recording.")
+            raise DeviceAlreadyRecordingError(
+                f"Microphone {self.microphone_index} is already recording."
+            )
 
         # Reset queue and shared memory
         self.read_shared_array.reset()
@@ -480,25 +501,33 @@ class PortAudioMicrophone(Microphone):
         self.audio_callback_start_event.set()
 
         if not self.is_recording:
-            raise RuntimeError(f"Error starting recording for microphone {self.microphone_index}.")
+            raise RuntimeError(
+                f"Error starting recording for microphone {self.microphone_index}."
+            )
         if output_file is not None and not self.is_writing:
-            raise RuntimeError(f"Error starting writing for microphone {self.microphone_index}.")
+            raise RuntimeError(
+                f"Error starting writing for microphone {self.microphone_index}."
+            )
 
     def stop_recording(self) -> None:
         """
         Stops the recording of the microphones.
         """
         if not self.is_connected:
-            raise DeviceNotConnectedError(f"Microphone {self.microphone_index} is not connected.")
+            raise DeviceNotConnectedError(
+                f"Microphone {self.microphone_index} is not connected."
+            )
         if not self.is_recording:
-            raise DeviceNotRecordingError(f"Microphone {self.microphone_index} is not recording.")
+            raise DeviceNotRecordingError(
+                f"Microphone {self.microphone_index} is not recording."
+            )
 
         self.audio_callback_start_event.clear()
         self.record_start_event.clear()  # Ensures the audio stream is not started again !
         self.record_stop_event.set()
 
         self.read_shared_array.reset()
-        self._clear_queue(self.write_queue, join_queue=True)
+        self._clear_queue(self.write_queue, join_queue=self.is_writing)
 
         if self.is_writing:
             self.write_stop_event.set()
@@ -510,9 +539,13 @@ class PortAudioMicrophone(Microphone):
             timeout -= 0.01
 
         if self.is_recording:
-            raise RuntimeError(f"Error stopping recording for microphone {self.microphone_index}.")
+            raise RuntimeError(
+                f"Error stopping recording for microphone {self.microphone_index}."
+            )
         if self.is_writing:
-            raise RuntimeError(f"Error stopping writing for microphone {self.microphone_index}.")
+            raise RuntimeError(
+                f"Error stopping writing for microphone {self.microphone_index}."
+            )
 
     @staticmethod
     def _write_loop(

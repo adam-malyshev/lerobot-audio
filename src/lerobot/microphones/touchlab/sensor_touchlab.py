@@ -32,7 +32,7 @@ import numpy as np
 from serial import Serial
 from soundfile import SoundFile
 
-from lerobot.errors import (
+from lerobot.utils.errors import (
     DeviceAlreadyConnectedError,
     DeviceAlreadyRecordingError,
     DeviceNotConnectedError,
@@ -154,7 +154,9 @@ class TouchLabSensor(Microphone):
         Establish connection to the sensor.
         """
         if self.is_connected:
-            raise DeviceAlreadyConnectedError(f"Sensor connected to {self.sensor_port} is already connected.")
+            raise DeviceAlreadyConnectedError(
+                f"Sensor connected to {self.sensor_port} is already connected."
+            )
 
         # Create or reset queue and shared array
         self.read_shared_array = SharedArray(
@@ -197,7 +199,9 @@ class TouchLabSensor(Microphone):
             timeout=5.0
         )  # Wait for the recording process to be started, and to potentially raise an error on failure.
         if not self.is_connected or not is_init:
-            raise RuntimeError(f"Error connecting sensor connected to {self.sensor_port}.")
+            raise RuntimeError(
+                f"Error connecting sensor connected to {self.sensor_port}."
+            )
 
         logger.info(f"{self} connected.")
 
@@ -228,13 +232,17 @@ class TouchLabSensor(Microphone):
                 strings = buffer.decode("utf8").split(",")
                 num_taxels = len(strings)
 
-                if num_taxels > 0 and num_taxels < MAX_SERIAL_READ_SIZE:  # Make sure we didn't read rubbish
+                if (
+                    num_taxels > 0 and num_taxels < MAX_SERIAL_READ_SIZE
+                ):  # Make sure we didn't read rubbish
                     indata = np.empty((1, num_taxels))
                     for i in range(num_taxels):
                         indata[0, i] = int(strings[i])
 
                     write_queue.put_nowait(indata[:, channels_index])
-                    read_shared_array.write(local_read_shared_array, indata[:, channels_index])
+                    read_shared_array.write(
+                        local_read_shared_array, indata[:, channels_index]
+                    )
 
         process_init_event.set()
 
@@ -258,7 +266,9 @@ class TouchLabSensor(Microphone):
         Disconnect the sensor and release any resources.
         """
         if not self.is_connected:
-            raise DeviceNotConnectedError(f"Sensor connected to {self.sensor_port} is not connected.")
+            raise DeviceNotConnectedError(
+                f"Sensor connected to {self.sensor_port} is not connected."
+            )
 
         if self.is_recording:
             self.stop_recording()
@@ -269,7 +279,9 @@ class TouchLabSensor(Microphone):
         self.record_process.join()
 
         if self.is_connected:
-            raise RuntimeError(f"Error disconnecting sensor connected to {self.sensor_port}.")
+            raise RuntimeError(
+                f"Error disconnecting sensor connected to {self.sensor_port}."
+            )
 
         logger.info(f"{self} disconnected.")
 
@@ -290,9 +302,13 @@ class TouchLabSensor(Microphone):
             barrier: If not None, ensures that multiple sensors start recording at the same time.
         """
         if not self.is_connected:
-            raise DeviceNotConnectedError(f"Sensor connected to {self.sensor_port} is not connected.")
+            raise DeviceNotConnectedError(
+                f"Sensor connected to {self.sensor_port} is not connected."
+            )
         if self.is_recording:
-            raise DeviceAlreadyRecordingError(f"Sensor connected to {self.sensor_port} is already recording.")
+            raise DeviceAlreadyRecordingError(
+                f"Sensor connected to {self.sensor_port} is already recording."
+            )
 
         # Reset queue and shared memory
         self.read_shared_array.reset()
@@ -355,9 +371,13 @@ class TouchLabSensor(Microphone):
         self.audio_callback_start_event.set()
 
         if not self.is_recording:
-            raise RuntimeError(f"Error starting recording for sensor connected to {self.sensor_port}.")
+            raise RuntimeError(
+                f"Error starting recording for sensor connected to {self.sensor_port}."
+            )
         if output_file is not None and not self.is_writing:
-            raise RuntimeError(f"Error starting writing for sensor connected to {self.sensor_port}.")
+            raise RuntimeError(
+                f"Error starting writing for sensor connected to {self.sensor_port}."
+            )
 
     def _read(self) -> np.ndarray:
         """
@@ -372,9 +392,13 @@ class TouchLabSensor(Microphone):
             np.ndarray: Captured audio chunk as a numpy array.
         """
         if not self.is_connected:
-            raise DeviceNotConnectedError(f"Sensor connected to {self.sensor_port} is not connected.")
+            raise DeviceNotConnectedError(
+                f"Sensor connected to {self.sensor_port} is not connected."
+            )
         if not self.is_recording:
-            raise RuntimeError(f"Sensor connected to {self.sensor_port} is not recording.")
+            raise RuntimeError(
+                f"Sensor connected to {self.sensor_port} is not recording."
+            )
 
         start_time = time.perf_counter()
 
@@ -394,9 +418,13 @@ class TouchLabSensor(Microphone):
     def stop_recording(self) -> None:
         """Stop recording audio from the sensor."""
         if not self.is_connected:
-            raise DeviceNotConnectedError(f"Sensor connected to {self.sensor_port} is not connected.")
+            raise DeviceNotConnectedError(
+                f"Sensor connected to {self.sensor_port} is not connected."
+            )
         if not self.is_recording:
-            raise DeviceNotRecordingError(f"Sensor connected to {self.sensor_port} is not recording.")
+            raise DeviceNotRecordingError(
+                f"Sensor connected to {self.sensor_port} is not recording."
+            )
 
         self.audio_callback_start_event.clear()
         self.record_start_event.clear()  # Ensures the audio stream is not started again !
@@ -415,9 +443,13 @@ class TouchLabSensor(Microphone):
             timeout -= 0.01
 
         if self.is_recording:
-            raise RuntimeError(f"Error stopping recording for sensor connected to {self.sensor_port}.")
+            raise RuntimeError(
+                f"Error stopping recording for sensor connected to {self.sensor_port}."
+            )
         if self.is_writing:
-            raise RuntimeError(f"Error stopping writing for sensor connected to {self.sensor_port}.")
+            raise RuntimeError(
+                f"Error stopping writing for sensor connected to {self.sensor_port}."
+            )
 
     def __del__(self) -> None:
         if self.is_connected:
