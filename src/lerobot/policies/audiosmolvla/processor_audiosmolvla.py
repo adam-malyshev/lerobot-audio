@@ -41,6 +41,7 @@ def make_audiosmolvla_pre_post_processors(
 ]:
     input_steps = [
         RenameObservationsProcessorStep(rename_map={}),
+        CustomAudioProcessorStep(),
         AddBatchDimensionProcessorStep(),
         SmolVLANewLineProcessor(),
         TokenizerProcessorStep(
@@ -55,7 +56,6 @@ def make_audiosmolvla_pre_post_processors(
             norm_map=config.normalization_mapping,
             stats=dataset_stats,
         ),
-        CustomAudioProcessorStep(),
     ]
     output_steps = [
         UnnormalizerProcessorStep(
