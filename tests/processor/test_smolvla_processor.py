@@ -20,7 +20,12 @@ from unittest.mock import patch
 import pytest
 import torch
 
-from lerobot.configs.types import FeatureType, NormalizationMode, PipelineFeatureType, PolicyFeature
+from lerobot.configs.types import (
+    FeatureType,
+    NormalizationMode,
+    PipelineFeatureType,
+    PolicyFeature,
+)
 from lerobot.policies.smolvla.configuration_smolvla import SmolVLAConfig
 from lerobot.policies.smolvla.processor_smolvla import (
     SmolVLANewLineProcessor,
@@ -37,7 +42,7 @@ from lerobot.processor import (
     UnnormalizerProcessorStep,
 )
 from lerobot.processor.converters import create_transition, transition_to_batch
-from lerobot.utils.constants import ACTION, OBS_IMAGE, OBS_STATE
+from lerobot.utils.constants import ACTION, OBS_IMAGE, OBS_STATE, OBS_AUDIO
 
 
 class MockTokenizerProcessorStep(ProcessorStep):
@@ -83,6 +88,7 @@ def create_default_stats():
     return {
         OBS_STATE: {"mean": torch.zeros(8), "std": torch.ones(8)},
         OBS_IMAGE: {},  # No normalization for images
+        OBS_AUDIO: {},
         ACTION: {"min": torch.full((7,), -1.0), "max": torch.ones(7)},
     }
 
@@ -93,7 +99,8 @@ def test_make_smolvla_processor_basic():
     stats = create_default_stats()
 
     with patch(
-        "lerobot.policies.smolvla.processor_smolvla.TokenizerProcessorStep", MockTokenizerProcessorStep
+        "lerobot.policies.smolvla.processor_smolvla.TokenizerProcessorStep",
+        MockTokenizerProcessorStep,
     ):
         preprocessor, postprocessor = make_smolvla_pre_post_processors(
             config,
@@ -197,7 +204,8 @@ def test_smolvla_processor_cuda():
             return features
 
     with patch(
-        "lerobot.policies.smolvla.processor_smolvla.TokenizerProcessorStep", MockTokenizerProcessorStep
+        "lerobot.policies.smolvla.processor_smolvla.TokenizerProcessorStep",
+        MockTokenizerProcessorStep,
     ):
         preprocessor, postprocessor = make_smolvla_pre_post_processors(
             config,
@@ -210,7 +218,9 @@ def test_smolvla_processor_cuda():
         OBS_IMAGE: torch.randn(3, 224, 224),
     }
     action = torch.randn(7)
-    transition = create_transition(observation, action, complementary_data={"task": "test task"})
+    transition = create_transition(
+        observation, action, complementary_data={"task": "test task"}
+    )
 
     batch = transition_to_batch(transition)
 
@@ -255,7 +265,8 @@ def test_smolvla_processor_accelerate_scenario():
             return features
 
     with patch(
-        "lerobot.policies.smolvla.processor_smolvla.TokenizerProcessorStep", MockTokenizerProcessorStep
+        "lerobot.policies.smolvla.processor_smolvla.TokenizerProcessorStep",
+        MockTokenizerProcessorStep,
     ):
         preprocessor, postprocessor = make_smolvla_pre_post_processors(
             config,
@@ -269,7 +280,9 @@ def test_smolvla_processor_accelerate_scenario():
         OBS_IMAGE: torch.randn(1, 3, 224, 224).to(device),
     }
     action = torch.randn(1, 7).to(device)
-    transition = create_transition(observation, action, complementary_data={"task": ["test task"]})
+    transition = create_transition(
+        observation, action, complementary_data={"task": ["test task"]}
+    )
 
     batch = transition_to_batch(transition)
 
@@ -314,7 +327,8 @@ def test_smolvla_processor_multi_gpu():
             return features
 
     with patch(
-        "lerobot.policies.smolvla.processor_smolvla.TokenizerProcessorStep", MockTokenizerProcessorStep
+        "lerobot.policies.smolvla.processor_smolvla.TokenizerProcessorStep",
+        MockTokenizerProcessorStep,
     ):
         preprocessor, postprocessor = make_smolvla_pre_post_processors(
             config,
@@ -328,7 +342,9 @@ def test_smolvla_processor_multi_gpu():
         OBS_IMAGE: torch.randn(1, 3, 224, 224).to(device),
     }
     action = torch.randn(1, 7).to(device)
-    transition = create_transition(observation, action, complementary_data={"task": ["test task"]})
+    transition = create_transition(
+        observation, action, complementary_data={"task": ["test task"]}
+    )
 
     batch = transition_to_batch(transition)
 
@@ -348,7 +364,8 @@ def test_smolvla_processor_without_stats():
 
     # Mock the tokenizer processor
     with patch(
-        "lerobot.policies.smolvla.processor_smolvla.TokenizerProcessorStep", MockTokenizerProcessorStep
+        "lerobot.policies.smolvla.processor_smolvla.TokenizerProcessorStep",
+        MockTokenizerProcessorStep,
     ):
         preprocessor, postprocessor = make_smolvla_pre_post_processors(
             config,
@@ -385,7 +402,9 @@ def test_smolvla_newline_processor_transform_features():
 
     # Test transform_features
     features = {
-        PipelineFeatureType.OBSERVATION: {OBS_STATE: PolicyFeature(type=FeatureType.STATE, shape=(10,))},
+        PipelineFeatureType.OBSERVATION: {
+            OBS_STATE: PolicyFeature(type=FeatureType.STATE, shape=(10,))
+        },
     }
     result = processor.transform_features(features)
     assert result == features  # Should return unchanged
@@ -399,7 +418,8 @@ def test_smolvla_processor_bfloat16_device_float32_normalizer():
     stats = create_default_stats()
 
     with patch(
-        "lerobot.policies.smolvla.processor_smolvla.TokenizerProcessorStep", MockTokenizerProcessorStep
+        "lerobot.policies.smolvla.processor_smolvla.TokenizerProcessorStep",
+        MockTokenizerProcessorStep,
     ):
         preprocessor, _ = make_smolvla_pre_post_processors(
             config,
@@ -411,7 +431,9 @@ def test_smolvla_processor_bfloat16_device_float32_normalizer():
     for step in preprocessor.steps:
         if isinstance(step, DeviceProcessorStep):
             # Device processor converts to bfloat16
-            modified_steps.append(DeviceProcessorStep(device=config.device, float_dtype="bfloat16"))
+            modified_steps.append(
+                DeviceProcessorStep(device=config.device, float_dtype="bfloat16")
+            )
         elif isinstance(step, NormalizerProcessorStep):
             # Normalizer stays configured as float32 (will auto-adapt to bfloat16)
             modified_steps.append(
@@ -448,7 +470,9 @@ def test_smolvla_processor_bfloat16_device_float32_normalizer():
 
     # Verify: DeviceProcessor → bfloat16, NormalizerProcessor adapts → final output is bfloat16
     assert processed[OBS_STATE].dtype == torch.bfloat16
-    assert processed[OBS_IMAGE].dtype == torch.bfloat16  # IDENTITY normalization still gets dtype conversion
+    assert (
+        processed[OBS_IMAGE].dtype == torch.bfloat16
+    )  # IDENTITY normalization still gets dtype conversion
     assert processed[TransitionKey.ACTION.value].dtype == torch.bfloat16
 
     # Verify normalizer automatically adapted its internal state
