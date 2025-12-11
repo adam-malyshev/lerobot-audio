@@ -228,8 +228,6 @@ class AudioVLAFlowMatching(VLAFlowMatching):
 
     def embed_audio(self, audio_spectrogram: torch.Tensor):
         features = self.audio_encoder(audio_spectrogram)
-        features = features.permute(0, 2, 3, 1)
-        features = features.flatten(1, 2)
         audio_hidden_states = self.audio_projector(features)
         return audio_hidden_states
 
