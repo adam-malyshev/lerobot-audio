@@ -303,6 +303,8 @@ class AudioVLAFlowMatching(VLAFlowMatching):
             for audio, _ in zip(audio_list, audio_masks_list):
                 audio_emb = self.embed_audio(audio)
 
+                if audio_emb.ndim == 2:
+                    audio_emb = audio_emb.unsqueeze(1)
                 bsize = audio_emb.shape[0]
                 device = audio_emb.device
 
