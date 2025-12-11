@@ -41,8 +41,8 @@ from lerobot.policies.sac.reward_model.configuration_classifier import (
 from lerobot.policies.smolvla.configuration_smolvla import SmolVLAConfig
 from lerobot.policies.tdmpc.configuration_tdmpc import TDMPCConfig
 from lerobot.policies.vqbet.configuration_vqbet import VQBeTConfig
-from lerobot_policy_audiosmolvla.configuration_audiosmolvla import AudioSmolVLAConfig
-from lerobot_policy_audiosmolvla.processor_audiosmolvla import (
+from lerobot.policies.audiosmolvla.configuration_audiosmolvla import AudioSmolVLAConfig
+from lerobot.policies.audiosmolvla.processor_audiosmolvla import (
     make_audiosmolvla_pre_post_processors,
 )
 from lerobot.processor import PolicyAction, PolicyProcessorPipeline
@@ -116,7 +116,9 @@ def get_policy_class(name: str) -> type[PreTrainedPolicy]:
 
         return GrootPolicy
     elif name == "audiosmolvla":
-        from lerobot_policy_audiosmolvla.modeling_audiosmolvla import AudioSmolVLAPolicy
+        from lerobot.policies.audiosmolvla.modeling_audiosmolvla import (
+            AudioSmolVLAPolicy,
+        )
 
         return AudioSmolVLAPolicy
     else:
