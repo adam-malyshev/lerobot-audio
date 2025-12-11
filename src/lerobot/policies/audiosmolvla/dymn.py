@@ -632,7 +632,7 @@ class DyMNMedium(nn.Module):
         Returns:
              embeddings: (Batch, EmbedDim)
         """
-        embeddings = self.model._feature_forward(spec)
+        _, embeddings = self.model(spec)
         
         return embeddings
 
