@@ -572,6 +572,16 @@ class DyMNMedium(nn.Module):
         width_mult = 1.0
         use_dy_blocks = "all"
         pretrained_name = "dymn10_as" if pretrained else None
+
+        self.audio_transform = AugmentMelSTFT(
+            n_mels=128, 
+            sr=32000, 
+            win_length=800, 
+            hopsize=320, 
+            n_fft=1024,
+            freqm=48,
+            timem=192
+        )
         
         # Build Config
         bneck_conf = partial(DynamicInvertedResidualConfig, width_mult=width_mult)
@@ -625,13 +635,18 @@ class DyMNMedium(nn.Module):
             self.model.eval()
 
     
-    def forward(self, spec: Tensor):
+    @torch.no_grad()
+    def forward(self, audio: Tensor):
         """
         Args:
             spectrogram: (Batch, 1, n_mels, time)
         Returns:
              embeddings: (Batch, EmbedDim)
         """
+        if audio.ndim == 3 and audio.shape[1] == 1:
+            audio = audio.squeeze(1)
+        spec = self.audio_transform(audio)
+        spec = spec.unsqueeze(1)
         _, embeddings = self.model(spec)
         
         return embeddings
