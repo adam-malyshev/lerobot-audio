@@ -1064,6 +1064,8 @@ class LeRobotDataset(torch.utils.data.Dataset):
         ep = self.meta.episodes[ep_idx]
         item = {}
         for vid_key, query_ts in query_timestamps.items():
+            if vid_key not in self.meta.video_keys:
+                continue
             # Episodes are stored sequentially on a single mp4 to reduce the number of files.
             # Thus we load the start timestamp of the episode on this mp4 and,
             # shift the query timestamp accordingly.
@@ -1083,6 +1085,8 @@ class LeRobotDataset(torch.utils.data.Dataset):
         ep = self.meta.episodes[ep_idx]
         item = {}
         for audio_key, query_ts in query_timestamps.items():
+            if audio_key not in self.meta.audio_keys:
+                continue
             # Episodes are stored sequentially on a single mp4 to reduce the number of files.
             # Thus we load the start timestamp of the episode on this mp4 and,
             # shift the query timestamp accordingly.
