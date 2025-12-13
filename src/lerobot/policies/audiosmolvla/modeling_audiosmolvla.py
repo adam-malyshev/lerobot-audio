@@ -32,6 +32,8 @@ from lerobot.policies.utils import populate_queues
 
 from transformers import AddedToken
 from .dymn import DyMNMedium
+from huggingface_hub import hf_hub_download
+from safetensors.torch import load_file
 
 
 class AudioProjector(nn.Module):
@@ -59,6 +61,31 @@ class AudioSmolVLAPolicy(SmolVLAPolicy):
         self.config = config
 
         self.model = AudioVLAFlowMatching(config)
+
+        if self.config.add_audio_special_tokens:
+            tokenizer = self.model.vlm_with_expert.processor.tokenizer
+            vlm_model = self.model.vlm_with_expert.vlm
+
+            self.audio_start_token_str = AddedToken(
+                "<audio_start>",
+                normalized=False,
+                special=True,
+                lstrip=False,
+                rstrip=False,
+            )
+            self.audio_end_token_str = AddedToken(
+                "<audio_end>", normalized=False, special=True, lstrip=False, rstrip=False
+            )
+
+            audio_tokens = [self.audio_start_token_str, self.audio_end_token_str]
+            num_added = tokenizer.add_special_tokens(
+                {"extra_special_tokens": audio_tokens}
+            )
+            if num_added > 0:
+                vlm_model.resize_token_embeddings(len(tokenizer))
+
+            self.audio_start_token_id = tokenizer.convert_tokens_to_ids(self.audio_start_token_str)
+            self.audio_end_token_id = tokenizer.convert_tokens_to_ids(self.audio_end_token_str)
 
         self.reset()
 
@@ -185,46 +212,36 @@ class AudioVLAFlowMatching(VLAFlowMatching):
     def __init__(self, config: AudioSmolVLAConfig):
         super().__init__(config)
 
-        tokenizer = self.vlm_with_expert.processor.tokenizer
-        vlm_model = self.vlm_with_expert.vlm
-
-        self.audio_start_token_str = AddedToken(
-            "<|audio_start|>",
-            normalized=False,
-            special=True,
-            lstrip=False,
-            rstrip=False,
-        )
-        self.audio_end_token_str = AddedToken(
-            "<|audio_end|>", normalized=False, special=True, lstrip=False, rstrip=False
-        )
-
-        audio_tokens = [self.audio_start_token_str, self.audio_end_token_str]
-        num_added = tokenizer.add_special_tokens(
-            {"additional_special_tokens": audio_tokens}
-        )
-
-        if num_added > 0:
-            vlm_model.resize_token_embeddings(len(tokenizer))
-            with torch.no_grad():
-                audio_ref_ids = tokenizer("audio", add_special_tokens=False).input_ids
-                if len(audio_ref_ids) > 0:
-                    audio_ref_id = audio_ref_ids[0]
-                    ref_embedding = vlm_model.get_input_embeddings().weight[
-                        audio_ref_id
-                    ]
-                    embedding_layer = vlm_model.get_input_embeddings()
-                    embedding_layer.weight[-num_added:] = ref_embedding.clone()
-
-        self.audio_start_token_id = tokenizer.convert_tokens_to_ids("<|audio_start|>")
-        self.audio_end_token_id = tokenizer.convert_tokens_to_ids("<|audio_end|>")
 
         self.audio_input_dim = 960
         self.lm_hidden_size = self.vlm_with_expert.config.text_config.hidden_size
         self.audio_projector = AudioProjector(self.audio_input_dim, self.lm_hidden_size)
 
+        if config.audio_projector_repo_id:
+            try:
+                try:
+                    checkpoint_path = hf_hub_download(
+                        repo_id=config.audio_projector_repo_id,
+                        filename="model.safetensors",
+                    )
+                    state_dict = load_file(checkpoint_path)
+                except Exception:
+                    checkpoint_path = hf_hub_download(
+                        repo_id=config.audio_projector_repo_id,
+                        filename="pytorch_model.bin",
+                    )
+                    state_dict = torch.load(checkpoint_path, map_location="cpu")
+
+                self.audio_projector.load_state_dict(state_dict)
+                print(f"Loaded audio projector weights from {config.audio_projector_repo_id}")
+            except Exception as e:
+                print(f"Failed to load audio projector weights from {config.audio_projector_repo_id}: {e}")
+                print("Using random initialization for audio projector")
+
         self.audio_encoder = DyMNMedium(pretrained=True, device=config.device)
         self.audio_encoder.device
+
+        self.add_audio_special_tokens = self.config.add_audio_special_tokens
 
     def embed_audio(self, audio_spectrogram: torch.Tensor):
         features = self.audio_encoder(audio_spectrogram)
@@ -301,22 +318,26 @@ class AudioVLAFlowMatching(VLAFlowMatching):
 
         if audio_list is not None and len(audio_list) > 0:
             for audio, _ in zip(audio_list, audio_masks_list):
+
+                if self.add_audio_special_tokens:
+                    audio_start_token = self.vlm_with_expert.embed_language_tokens(
+                        torch.tensor([self.audio_start_token_id], device=device)
+                    ).expand(bsize, -1, -1)
+                    audio_start_mask = torch.ones_like(
+                        audio_start_token[:, :, 0],
+                        dtype=torch.bool,
+                        device=audio_start_token.device,
+                    )
+                    embs.append(audio_start_token)
+                    pad_masks.append(audio_start_mask)
+                    att_masks += [0] * (audio_start_mask.shape[1])
+
                 audio_emb = self.embed_audio(audio)
 
                 if audio_emb.ndim == 2:
                     audio_emb = audio_emb.unsqueeze(1)
                 bsize = audio_emb.shape[0]
                 device = audio_emb.device
-
-                start_emb = self.vlm_with_expert.embed_language_tokens(
-                    torch.tensor([self.audio_start_token_id], device=device)
-                ).expand(bsize, -1, -1)
-
-                end_emb = self.vlm_with_expert.embed_language_tokens(
-                    torch.tensor([self.audio_end_token_id], device=device)
-                ).expand(bsize, -1, -1)
-
-                audio_emb = torch.cat([start_emb, audio_emb, end_emb], dim=1)
 
                 audio_emb = audio_emb * math.sqrt(audio_emb.shape[-1])
 
@@ -329,6 +350,19 @@ class AudioVLAFlowMatching(VLAFlowMatching):
                 pad_masks.append(full_audio_mask)
 
                 att_masks += [0] * feat_len
+
+                if self.add_audio_special_tokens: 
+                    audio_end_token = self.vlm_with_expert.embed_language_tokens(
+                        torch.tensor([self.audio_end_token_id], device=device)
+                    ).expand(bsize, -1, -1)
+                    audio_end_mask = torch.ones_like(
+                        audio_end_token[:, :, 0],
+                        dtype=torch.bool,
+                        device=audio_end_token.device,
+                    )
+                    embs.append(audio_end_token)
+                    pad_masks.append(audio_end_mask)
+                    att_masks += [0] * (audio_end_mask.shape[1])
 
         lang_emb = self.vlm_with_expert.embed_language_tokens(lang_tokens)
         lang_emb_dim = lang_emb.shape[-1]

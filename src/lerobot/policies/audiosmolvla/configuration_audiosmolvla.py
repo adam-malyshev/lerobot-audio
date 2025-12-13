@@ -33,6 +33,15 @@ class AudioSmolVLAConfig(SmolVLAConfig):
     target_audio_len_samples: int = 320000
     sampling_rate: int = 32000
 
+    add_audio_special_tokens: bool = False
+
+    vlm_model_name: str = (
+        "shivamg05/SmolVLM2-500M-Audio-Aligned"  # Select the VLM backbone.
+    )
+    load_vlm_weights: bool = (
+        False  # Set to True in case of training the expert from scratch. True when init from pretrained SmolVLA weights
+    )
+
     def __post_init__(self):
         super().__post_init__()
         if self.audio_token_dim <= 0:
