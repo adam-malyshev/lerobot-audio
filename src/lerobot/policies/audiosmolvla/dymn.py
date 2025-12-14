@@ -635,30 +635,30 @@ class DyMNMedium(nn.Module):
             self.model.eval()
 
     
-    @torch.no_grad()
-    def forward(self, audio: Tensor):
-        """
-        Args:
-            spectrogram: (Batch, 1, n_mels, time)
-        Returns:
-             embeddings: (Batch, EmbedDim)
-        """
-        if audio.ndim == 3 and audio.shape[1] == 1:
-            audio = audio.squeeze(1)
-        spec = self.audio_transform(audio)
-        spec = spec.unsqueeze(1)
-        _, embeddings = self.model(spec)
-
-        return embeddings
     # @torch.no_grad()
-    # def forward(self, spec: Tensor):
+    # def forward(self, audio: Tensor):
     #     """
     #     Args:
     #         spectrogram: (Batch, 1, n_mels, time)
     #     Returns:
     #          embeddings: (Batch, EmbedDim)
     #     """
+    #     if audio.ndim == 3 and audio.shape[1] == 1:
+    #         audio = audio.squeeze(1)
+    #     spec = self.audio_transform(audio)
+    #     spec = spec.unsqueeze(1)
     #     _, embeddings = self.model(spec)
     #
     #     return embeddings
+    @torch.no_grad()
+    def forward(self, spec: Tensor):
+        """
+        Args:
+            spectrogram: (Batch, 1, n_mels, time)
+        Returns:
+             embeddings: (Batch, EmbedDim)
+        """
+        _, embeddings = self.model(spec)
+
+        return embeddings
 

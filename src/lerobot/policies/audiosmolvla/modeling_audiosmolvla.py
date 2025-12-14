@@ -212,30 +212,24 @@ class AudioVLAFlowMatching(VLAFlowMatching):
     def __init__(self, config: AudioSmolVLAConfig):
         super().__init__(config)
 
+        self.config = config
 
         self.audio_input_dim = 960
         self.lm_hidden_size = self.vlm_with_expert.config.text_config.hidden_size
         self.audio_projector = AudioProjector(self.audio_input_dim, self.lm_hidden_size)
 
-        if config.audio_projector_repo_id:
+        if self.config.audio_projector_repo_id:
             try:
-                try:
-                    checkpoint_path = hf_hub_download(
-                        repo_id=config.audio_projector_repo_id,
-                        filename="model.safetensors",
-                    )
-                    state_dict = load_file(checkpoint_path)
-                except Exception:
-                    checkpoint_path = hf_hub_download(
-                        repo_id=config.audio_projector_repo_id,
-                        filename="pytorch_model.bin",
-                    )
-                    state_dict = torch.load(checkpoint_path, map_location="cpu")
+                checkpoint_path = hf_hub_download(
+                    repo_id=self.config.audio_projector_repo_id,
+                    filename="projector_weights.pt",
+                )
+                state_dict = torch.load(checkpoint_path, map_location="cpu")
 
                 self.audio_projector.load_state_dict(state_dict)
-                print(f"Loaded audio projector weights from {config.audio_projector_repo_id}")
+                print(f"Loaded audio projector weights from {self.config.audio_projector_repo_id}")
             except Exception as e:
-                print(f"Failed to load audio projector weights from {config.audio_projector_repo_id}: {e}")
+                print(f"Failed to load audio projector weights from {self.config.audio_projector_repo_id}: {e}")
                 print("Using random initialization for audio projector")
 
         self.audio_encoder = DyMNMedium(pretrained=True, device=config.device)
