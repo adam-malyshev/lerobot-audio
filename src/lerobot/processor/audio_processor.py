@@ -16,6 +16,7 @@
 from dataclasses import dataclass, field
 
 from torch import Tensor
+import torch
 from torchaudio.functional import amplitude_to_DB
 from torchaudio.transforms import MelSpectrogram, Resample
 from torchvision.transforms import Compose, Lambda, Resize
@@ -120,7 +121,10 @@ class AudioProcessorStep(ObservationProcessorStep):
         # Process multiple audio observations
         for key, value in processed_obs.items():
             if (
-                key.startswith(f"{OBS_AUDIO}.") and isinstance(value, Tensor) and value.dim() == 3
+                key.startswith(f"{OBS_AUDIO}.") 
+                and isinstance(value, Tensor) 
+                and value.dim() == 3 
+                and value.is_floating_point()
             ):  # Batch, Channels, Samples
                 processed_obs[key] = self.mel_spectrogram_transform(value)
 
