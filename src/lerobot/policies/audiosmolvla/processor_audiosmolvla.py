@@ -104,7 +104,7 @@ class CustomAudioProcessorStep(AudioProcessorStep):
                     orig_freq=self.input_sample_rate,
                     new_freq=self.intermediate_sample_rate,
                 ),
-                Lambda(lambda x: x.squeeze(1)),  # (B, 1, C, S) -> (B, C, S)
+                Lambda(lambda x: x.squeeze()),  # (B, 1, 1, S) -> (B, S)
                 self.preprocessor,
                 Lambda(lambda x: x.unsqueeze(1)),
             ]
