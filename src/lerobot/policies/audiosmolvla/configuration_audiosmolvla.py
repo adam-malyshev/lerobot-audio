@@ -62,7 +62,7 @@ class AudioSmolVLAConfig(SmolVLAConfig):
 
         for key in self.input_features:
             if (
-                "audio" in key
+                "observation.audio" in key
             ):  # requires for the dataset used @ training time to have a key like observation.audio
                 has_audio = True
                 break

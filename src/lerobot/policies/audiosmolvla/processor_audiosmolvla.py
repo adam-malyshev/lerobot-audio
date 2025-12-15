@@ -111,3 +111,7 @@ class CustomAudioProcessorStep(AudioProcessorStep):
                 Lambda(lambda x: x.unsqueeze(1)),
             ]
         )
+
+    def transform_features(self, features):
+        """Declare how this step transforms feature shapes/types - REQUIRED abstract method."""
+        return features  # Most processors return features unchanged
