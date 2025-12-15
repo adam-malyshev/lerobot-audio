@@ -55,6 +55,8 @@ from lerobot.utils.utils import (
     init_logging,
 )
 from lerobot.scripts.lerobot_train import update_policy
+
+from lerobot.policies.factory import make_policy
 import os
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -122,7 +124,8 @@ def train(cfg: TrainAudioPipelineConfig, accelerator: Accelerator | None = None)
         logging.info("Creating AudioSmolVLA policy")
 
     # --- Custom Policy Initialization ---
-    policy = AudioSmolVLAPolicy(cfg.policy, dataset_stats=dataset.meta.stats)
+    # policy = AudioSmolVLAPolicy(cfg.policy, dataset_stats=dataset.meta.stats)
+    policy = make_policy(AudioSmolVLAPolicy(cfg.policy, dataset_stats=dataset.meta.stats), ds_meta=dataset.meta)
 
     if cfg.base_policy_path and not cfg.resume:
         if is_main_process:
