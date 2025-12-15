@@ -745,8 +745,6 @@ def dataset_to_policy_features(features: dict[str, dict]) -> dict[str, PolicyFea
                 shape = (shape[2], shape[0], shape[1])
         elif ft["dtype"] == "audio":
             type = FeatureType.AUDIO
-            # if key == "observation.audio.mic_front" and len(shape) == 1:
-            #     shape = (1470, shape[0])
             if len(shape) not in [1, 2]:
                 raise ValueError(f"Number of dimensions of {key} != 2 (shape={shape})")
         elif key == OBS_ENV_STATE:
