@@ -125,7 +125,7 @@ def train(cfg: TrainAudioPipelineConfig, accelerator: Accelerator | None = None)
 
     # --- Custom Policy Initialization ---
     # policy = AudioSmolVLAPolicy(cfg.policy, dataset_stats=dataset.meta.stats)
-    policy = make_policy(AudioSmolVLAPolicy(cfg.policy, dataset_stats=dataset.meta.stats), ds_meta=dataset.meta)
+    policy = make_policy(AudioSmolVLAConfig(), ds_meta=dataset.meta)
 
     if cfg.base_policy_path and not cfg.resume:
         if is_main_process:
