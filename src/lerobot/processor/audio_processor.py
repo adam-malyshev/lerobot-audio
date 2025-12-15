@@ -85,8 +85,13 @@ class AudioProcessorStep(ObservationProcessorStep):
 
         self.mel_spectrogram_transform = Compose(
             [
-                Lambda(lambda x: x.mean(dim=1)),  # Average over all channels (second dimension after batch)
-                Resample(orig_freq=self.input_sample_rate, new_freq=self.intermediate_sample_rate),
+                Lambda(
+                    lambda x: x.mean(dim=1)
+                ),  # Average over all channels (second dimension after batch)
+                Resample(
+                    orig_freq=self.input_sample_rate,
+                    new_freq=self.intermediate_sample_rate,
+                ),
                 MelSpectrogram(
                     sample_rate=self.intermediate_sample_rate,
                     n_fft=self.n_fft,
@@ -95,7 +100,9 @@ class AudioProcessorStep(ObservationProcessorStep):
                     power=2,  # Power spectrum
                 ),
                 Lambda(
-                    lambda x: amplitude_to_DB(x, multiplier=10, amin=1e-10, db_multiplier=0)
+                    lambda x: amplitude_to_DB(
+                        x, multiplier=10, amin=1e-10, db_multiplier=0
+                    )
                 ),  # Convert to decibels
                 Resize(
                     (self.output_height, self.output_width)
@@ -115,13 +122,13 @@ class AudioProcessorStep(ObservationProcessorStep):
         # Identify target device from the first float audio tensor we find
         target_device = None
         if OBS_AUDIO in processed_obs and isinstance(processed_obs[OBS_AUDIO], Tensor):
-             target_device = processed_obs[OBS_AUDIO].device
+            target_device = processed_obs[OBS_AUDIO].device
         else:
-             for key, value in processed_obs.items():
+            for key, value in processed_obs.items():
                 if key.startswith(f"{OBS_AUDIO}.") and isinstance(value, Tensor):
                     target_device = value.device
                     break
-        
+
         # Ensure transforms are on the correct device
         if target_device is not None:
             if isinstance(self.mel_spectrogram_transform, Compose):
@@ -129,22 +136,26 @@ class AudioProcessorStep(ObservationProcessorStep):
                     if isinstance(t, torch.nn.Module):
                         t.to(target_device)
             elif isinstance(self.mel_spectrogram_transform, torch.nn.Module):
-                 self.mel_spectrogram_transform.to(target_device)
+                self.mel_spectrogram_transform.to(target_device)
 
         # Process single audio observation
         if OBS_AUDIO in processed_obs:
             audio_data = processed_obs[OBS_AUDIO]
-            if isinstance(audio_data, Tensor) and audio_data.dim() == 3:  # Batch, Channels, Samples
+            if (
+                isinstance(audio_data, Tensor) and audio_data.dim() == 3
+            ):  # Batch, Channels, Samples
+                print(audio_data.shape)
                 processed_obs[OBS_AUDIO] = self.mel_spectrogram_transform(audio_data)
 
         # Process multiple audio observations
         for key, value in processed_obs.items():
             if (
-                key.startswith(f"{OBS_AUDIO}.") 
-                and isinstance(value, Tensor) 
-                and value.dim() == 3 
+                key.startswith(f"{OBS_AUDIO}.")
+                and isinstance(value, Tensor)
+                and value.dim() == 3
                 and value.is_floating_point()
             ):  # Batch, Channels, Samples
+                print(value.shape)
                 processed_obs[key] = self.mel_spectrogram_transform(value)
 
         return processed_obs

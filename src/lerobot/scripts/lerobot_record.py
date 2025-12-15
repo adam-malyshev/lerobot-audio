@@ -72,12 +72,17 @@ from lerobot.cameras import (  # noqa: F401
     CameraConfig,  # noqa: F401
 )
 from lerobot.cameras.opencv.configuration_opencv import OpenCVCameraConfig  # noqa: F401
-from lerobot.cameras.realsense.configuration_realsense import RealSenseCameraConfig  # noqa: F401
+from lerobot.cameras.realsense.configuration_realsense import (
+    RealSenseCameraConfig,
+)  # noqa: F401
 from lerobot.configs import parser
 from lerobot.configs.policies import PreTrainedConfig
 from lerobot.datasets.image_writer import safe_stop_image_writer
 from lerobot.datasets.lerobot_dataset import LeRobotDataset
-from lerobot.datasets.pipeline_features import aggregate_pipeline_dataset_features, create_initial_features
+from lerobot.datasets.pipeline_features import (
+    aggregate_pipeline_dataset_features,
+    create_initial_features,
+)
 from lerobot.datasets.utils import (
     DEFAULT_AUDIO_CHUNK_DURATION,
     DEFAULT_INITIAL_AUDIO_BUFFER_DURATION,
@@ -88,8 +93,12 @@ from lerobot.datasets.video_utils import VideoEncodingManager
 from lerobot.microphones import (
     MicrophoneConfig,  # noqa: F401
 )
-from lerobot.microphones.portaudio.configuration_portaudio import PortAudioMicrophoneConfig  # noqa: F401
-from lerobot.microphones.touchlab.configuration_touchlab import TouchLabSensorConfig  # noqa: F401
+from lerobot.microphones.portaudio.configuration_portaudio import (
+    PortAudioMicrophoneConfig,
+)  # noqa: F401
+from lerobot.microphones.touchlab.configuration_touchlab import (
+    TouchLabSensorConfig,
+)  # noqa: F401
 from lerobot.microphones.utils import (
     async_microphones_start_recording,
     async_microphones_stop_recording,
@@ -128,7 +137,7 @@ from lerobot.teleoperators import (  # noqa: F401
 )
 from lerobot.teleoperators.keyboard.teleop_keyboard import KeyboardTeleop
 from lerobot.utils.audio_utils import rolling_vstack
-from lerobot.utils.constants import ACTION, OBS_STR
+from lerobot.utils.constants import ACTION, OBS_STR, OBS_AUDIO
 from lerobot.utils.control_utils import (
     init_keyboard_listener,
     is_headless,
@@ -210,11 +219,15 @@ class RecordConfig:
         policy_path = parser.get_path_arg("policy")
         if policy_path:
             cli_overrides = parser.get_cli_overrides("policy")
-            self.policy = PreTrainedConfig.from_pretrained(policy_path, cli_overrides=cli_overrides)
+            self.policy = PreTrainedConfig.from_pretrained(
+                policy_path, cli_overrides=cli_overrides
+            )
             self.policy.pretrained_path = policy_path
 
         if self.teleop is None and self.policy is None:
-            raise ValueError("Choose a policy, a teleoperator or both to control the robot")
+            raise ValueError(
+                "Choose a policy, a teleoperator or both to control the robot"
+            )
 
     @classmethod
     def __get_path_fields__(cls) -> list[str]:
@@ -283,24 +296,37 @@ def record_loop(
         )
 
     if dataset is not None and dataset.fps != fps:
-        raise ValueError(f"The dataset fps should be equal to requested fps ({dataset.fps} != {fps}).")
+        raise ValueError(
+            f"The dataset fps should be equal to requested fps ({dataset.fps} != {fps})."
+        )
 
     teleop_arm = teleop_keyboard = None
     if isinstance(teleop, list):
-        teleop_keyboard = next((t for t in teleop if isinstance(t, KeyboardTeleop)), None)
+        teleop_keyboard = next(
+            (t for t in teleop if isinstance(t, KeyboardTeleop)), None
+        )
         teleop_arm = next(
             (
                 t
                 for t in teleop
                 if isinstance(
                     t,
-                    (so100_leader.SO100Leader | so101_leader.SO101Leader | koch_leader.KochLeader),
+                    (
+                        so100_leader.SO100Leader
+                        | so101_leader.SO101Leader
+                        | koch_leader.KochLeader
+                    ),
                 )
             ),
             None,
         )
 
-        if not (teleop_arm and teleop_keyboard and len(teleop) == 2 and robot.name == "lekiwi_client"):
+        if not (
+            teleop_arm
+            and teleop_keyboard
+            and len(teleop) == 2
+            and robot.name == "lekiwi_client"
+        ):
             raise ValueError(
                 "For multi-teleop, the list must contain exactly one KeyboardTeleop and one arm teleoperator. Currently only supported for LeKiwi robot."
             )
@@ -315,7 +341,10 @@ def record_loop(
     if robot.microphones and (policy is not None or dataset is not None):
         audio_buffer = {
             microphone_name: np.zeros(
-                (int(microphone.sample_rate * DEFAULT_AUDIO_CHUNK_DURATION), len(microphone.channels))
+                (
+                    int(microphone.sample_rate * DEFAULT_AUDIO_CHUNK_DURATION),
+                    len(microphone.channels),
+                )
             )
             for microphone_name, microphone in robot.microphones.items()
         }
@@ -339,7 +368,9 @@ def record_loop(
         busy_wait(DEFAULT_INITIAL_AUDIO_BUFFER_DURATION)
         for microphone_name, microphone in robot.microphones.items():
             audio_chunk = microphone.read()
-            audio_buffer[microphone_name] = rolling_vstack(audio_buffer[microphone_name], audio_chunk)
+            audio_buffer[microphone_name] = rolling_vstack(
+                audio_buffer[microphone_name], audio_chunk
+            )
 
     timestamp = 0
     start_episode_t = time.perf_counter()
@@ -357,15 +388,26 @@ def record_loop(
         obs_processed = robot_observation_processor(obs)
 
         if policy is not None or dataset is not None:
-            observation_frame = build_dataset_frame(dataset.features, obs_processed, prefix=OBS_STR)
+            observation_frame = build_dataset_frame(
+                dataset.features, obs_processed, prefix=OBS_STR
+            )
 
         # Get action from either policy or teleop
-        if policy is not None and preprocessor is not None and postprocessor is not None:
+        if (
+            policy is not None
+            and preprocessor is not None
+            and postprocessor is not None
+        ):
             # Transform instantaneous audio samples into a buffer of fixed size
             buffered_observation_frame = copy(observation_frame)
             for name in audio_buffer:
                 # Add the audio buffer to the observation
-                buffered_observation_frame[name] = rolling_vstack(audio_buffer[name], observation_frame[name])
+                obs_name = f"{OBS_AUDIO}.{name}"
+                buffered_observation_frame[obs_name] = (
+                    rolling_vstack(audio_buffer[name], observation_frame[obs_name])
+                    # .transpose()
+                    # .squeeze()
+                )
 
             action_values = predict_action(
                 observation=buffered_observation_frame,
@@ -378,7 +420,9 @@ def record_loop(
                 robot_type=robot.robot_type,
             )
 
-            act_processed_policy: RobotAction = make_robot_action(action_values, dataset.features)
+            act_processed_policy: RobotAction = make_robot_action(
+                action_values, dataset.features
+            )
 
         elif policy is None and isinstance(teleop, Teleoperator):
             act = teleop.get_action()
@@ -417,7 +461,9 @@ def record_loop(
 
         # Write to dataset
         if dataset is not None:
-            action_frame = build_dataset_frame(dataset.features, action_values, prefix=ACTION)
+            action_frame = build_dataset_frame(
+                dataset.features, action_values, prefix=ACTION
+            )
             frame = {**observation_frame, **action_frame, "task": single_task}
             dataset.add_frame(frame)
 
@@ -442,9 +488,13 @@ def record(cfg: RecordConfig) -> LeRobotDataset:
     logging.info(pformat(asdict(cfg)))
 
     robot = make_robot_from_config(cfg.robot)
-    teleop = make_teleoperator_from_config(cfg.teleop) if cfg.teleop is not None else None
+    teleop = (
+        make_teleoperator_from_config(cfg.teleop) if cfg.teleop is not None else None
+    )
 
-    teleop_action_processor, robot_action_processor, robot_observation_processor = make_default_processors()
+    teleop_action_processor, robot_action_processor, robot_observation_processor = (
+        make_default_processors()
+    )
 
     dataset_features = combine_feature_dicts(
         aggregate_pipeline_dataset_features(
@@ -456,7 +506,9 @@ def record(cfg: RecordConfig) -> LeRobotDataset:
         ),
         aggregate_pipeline_dataset_features(
             pipeline=robot_observation_processor,
-            initial_features=create_initial_features(observation=robot.observation_features),
+            initial_features=create_initial_features(
+                observation=robot.observation_features
+            ),
             use_videos=cfg.dataset.video,
         ),
     )
@@ -471,9 +523,12 @@ def record(cfg: RecordConfig) -> LeRobotDataset:
         if hasattr(robot, "cameras") and len(robot.cameras) > 0:
             dataset.start_image_writer(
                 num_processes=cfg.dataset.num_image_writer_processes,
-                num_threads=cfg.dataset.num_image_writer_threads_per_camera * len(robot.cameras),
+                num_threads=cfg.dataset.num_image_writer_threads_per_camera
+                * len(robot.cameras),
             )
-        sanity_check_dataset_robot_compatibility(dataset, robot, cfg.dataset.fps, dataset_features)
+        sanity_check_dataset_robot_compatibility(
+            dataset, robot, cfg.dataset.fps, dataset_features
+        )
     else:
         # Create empty dataset or load existing saved episodes
         sanity_check_dataset_name(cfg.dataset.repo_id, cfg.policy)
@@ -485,12 +540,15 @@ def record(cfg: RecordConfig) -> LeRobotDataset:
             features=dataset_features,
             use_videos=cfg.dataset.video,
             image_writer_processes=cfg.dataset.num_image_writer_processes,
-            image_writer_threads=cfg.dataset.num_image_writer_threads_per_camera * len(robot.cameras),
+            image_writer_threads=cfg.dataset.num_image_writer_threads_per_camera
+            * len(robot.cameras),
             batch_encoding_size=cfg.dataset.video_encoding_batch_size,
         )
 
     # Load pretrained policy
-    policy = None if cfg.policy is None else make_policy(cfg.policy, ds_meta=dataset.meta)
+    policy = (
+        None if cfg.policy is None else make_policy(cfg.policy, ds_meta=dataset.meta)
+    )
     preprocessor = None
     postprocessor = None
     if cfg.policy is not None:
@@ -512,7 +570,10 @@ def record(cfg: RecordConfig) -> LeRobotDataset:
 
     with VideoEncodingManager(dataset):
         recorded_episodes = 0
-        while recorded_episodes < cfg.dataset.num_episodes and not events["stop_recording"]:
+        while (
+            recorded_episodes < cfg.dataset.num_episodes
+            and not events["stop_recording"]
+        ):
             log_say(f"Recording episode {dataset.num_episodes}", cfg.play_sounds)
             record_loop(
                 robot=robot,
@@ -534,7 +595,8 @@ def record(cfg: RecordConfig) -> LeRobotDataset:
             # Execute a few seconds without recording to give time to manually reset the environment
             # Skip reset for the last episode to be recorded
             if not events["stop_recording"] and (
-                (recorded_episodes < cfg.dataset.num_episodes - 1) or events["rerecord_episode"]
+                (recorded_episodes < cfg.dataset.num_episodes - 1)
+                or events["rerecord_episode"]
             ):
                 log_say("Reset the environment", cfg.play_sounds)
                 record_loop(
