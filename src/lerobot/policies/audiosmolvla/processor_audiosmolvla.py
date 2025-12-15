@@ -100,14 +100,11 @@ class CustomAudioProcessorStep(AudioProcessorStep):
 
         self.mel_spectrogram_transform = Compose(
             [
-                Lambda(
-                    lambda x: x.mean(dim=1) if x.ndim == 3 else x
-                ),  # Force mono if not handled
                 torchaudio.transforms.Resample(
                     orig_freq=self.input_sample_rate,
                     new_freq=self.intermediate_sample_rate,
                 ),
-                Lambda(lambda x: self.preprocessor(x)),
+                self.preprocessor,
                 Lambda(lambda x: x.unsqueeze(1)),
             ]
         )
