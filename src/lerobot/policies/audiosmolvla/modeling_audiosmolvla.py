@@ -83,6 +83,16 @@ class AudioSmolVLAPolicy(SmolVLAPolicy):
             )
             if num_added > 0:
                 vlm_model.resize_token_embeddings(len(tokenizer))
+                with torch.no_grad():
+                    audio_ref_ids = tokenizer("audio", add_special_tokens=False).input_ids
+                    if len(audio_ref_ids) > 0:
+                        audio_ref_id = audio_ref_ids[0]
+                        ref_embedding = vlm_model.get_input_embeddings().weight[
+                            audio_ref_id
+                        ]
+                        embedding_layer = vlm_model.get_input_embeddings()
+                        embedding_layer.weight[-num_added:] = ref_embedding.clone()   
+                
 
             self.audio_start_token_id = tokenizer.convert_tokens_to_ids(self.audio_start_token_str)
             self.audio_end_token_id = tokenizer.convert_tokens_to_ids(self.audio_end_token_str)
